@@ -1,4 +1,4 @@
 jdk:
   - openjdk11
 install:
-  - mvn --batch-mode clean install
+  - ./mvnw --batch-mode clean install

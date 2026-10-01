@@ -29,7 +29,7 @@ released dependency to your Maven project:
     <dependency>
         <groupId>com.github.silverspy</groupId>
         <artifactId>owl2vowl-core</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.1</version>
     </dependency>
 </dependencies>
 ```
@@ -47,8 +47,8 @@ Use released versions rather than a moving branch.
 ## Build and validate
 
 ```sh
-mvn --batch-mode clean install
-mvn --batch-mode dependency:tree -DoutputFile=dependency-tree.txt
+./mvnw --batch-mode clean install
+./mvnw --batch-mode dependency:tree -DoutputFile=dependency-tree.txt
 mkdir -p target/security
 node scripts/security/tree-inventory.mjs dependency-tree.txt target/security/dependencies.json
 node scripts/security/scan-osv.mjs target/security/dependencies.json target/security/osv.json --fail-on-vulnerability

@@ -21,7 +21,7 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
-      - run: mvn --batch-mode clean verify
+      - run: ./mvnw --batch-mode clean verify
 
   security:
     runs-on: ubuntu-latest
@@ -33,13 +33,13 @@ jobs:
           java-version: '11'
           cache: maven
       - name: Build and resolve the standalone dependency graph
-        run: mvn --batch-mode clean install org.apache.maven.plugins:maven-dependency-plugin:3.8.1:tree -DoutputFile=dependency-tree.txt
+        run: ./mvnw --batch-mode clean install org.apache.maven.plugins:maven-dependency-plugin:3.8.1:tree -DoutputFile=dependency-tree.txt
       - name: Audit dependencies and actual library contents
         run: |
           mkdir -p target/security
           node scripts/security/tree-inventory.mjs dependency-tree.txt target/security/dependencies.json
           node scripts/security/scan-osv.mjs target/security/dependencies.json target/security/osv.json --fail-on-vulnerability
-          python scripts/security/jar-inventory.py target/owl2vowl-core-1.0.0.jar target/security/jar.json --assert-clean
+          python scripts/security/jar-inventory.py target/owl2vowl-core-1.0.1.jar target/security/jar.json --assert-clean
       - name: Install checksum-verified Trivy 0.74.0
         run: |
           mkdir -p .trivy-tools
@@ -52,18 +52,18 @@ jobs:
         run: |
           : > target/security/empty.trivyignore
           .trivy-tools/trivy fs --cache-dir .trivy-cache --scanners vuln --detection-priority comprehensive --ignorefile target/security/empty.trivyignore --list-all-pkgs --no-progress --timeout 15m --format json --output target/security/trivy-source.json .
-          .trivy-tools/trivy rootfs --cache-dir .trivy-cache --scanners vuln --detection-priority comprehensive --ignorefile target/security/empty.trivyignore --list-all-pkgs --no-progress --timeout 15m --format json --output target/security/trivy-jar.json target/owl2vowl-core-1.0.0.jar
+          .trivy-tools/trivy rootfs --cache-dir .trivy-cache --scanners vuln --detection-priority comprehensive --ignorefile target/security/empty.trivyignore --list-all-pkgs --no-progress --timeout 15m --format json --output target/security/trivy-jar.json target/owl2vowl-core-1.0.1.jar
           node scripts/security/summarize-trivy.mjs target/security/trivy-summary.json target/security/trivy-source.json target/security/trivy-jar.json
           .trivy-tools/trivy --cache-dir .trivy-cache --version > target/security/trivy-version.txt
-          sha256sum target/owl2vowl-core-1.0.0.jar target/owl2vowl-core-1.0.0-sources.jar pom.xml > target/security/sha256.txt
+          sha256sum target/owl2vowl-core-1.0.1.jar target/owl2vowl-core-1.0.1-sources.jar pom.xml > target/security/sha256.txt
       - name: Preserve release candidates and audit reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: standalone-converter-audit
           path: |
-            target/owl2vowl-core-1.0.0.jar
-            target/owl2vowl-core-1.0.0-sources.jar
+            target/owl2vowl-core-1.0.1.jar
+            target/owl2vowl-core-1.0.1-sources.jar
             pom.xml
             dependency-tree.txt
             target/security/*.json
