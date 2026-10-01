@@ -1,0 +1,4 @@
+target/
+dependency-tree.txt
+.trivy-tools/
+.trivy-cache/

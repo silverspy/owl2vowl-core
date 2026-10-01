@@ -1,0 +1,70 @@
+name: Build and audit
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [11, 17, 21]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - run: mvn --batch-mode clean verify
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
+      - name: Build and resolve the standalone dependency graph
+        run: mvn --batch-mode clean install org.apache.maven.plugins:maven-dependency-plugin:3.8.1:tree -DoutputFile=dependency-tree.txt
+      - name: Audit dependencies and actual library contents
+        run: |
+          mkdir -p target/security
+          node scripts/security/tree-inventory.mjs dependency-tree.txt target/security/dependencies.json
+          node scripts/security/scan-osv.mjs target/security/dependencies.json target/security/osv.json --fail-on-vulnerability
+          python scripts/security/jar-inventory.py target/owl2vowl-core-1.0.0.jar target/security/jar.json --assert-clean
+      - name: Install checksum-verified Trivy 0.74.0
+        run: |
+          mkdir -p .trivy-tools
+          cd .trivy-tools
+          curl --fail --location --retry 3 --output trivy_0.74.0_Linux-64bit.tar.gz https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_linux-64bit.tar.gz
+          curl --fail --location --retry 3 --output checksums.txt https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_checksums.txt
+          sha256sum --check --ignore-missing checksums.txt
+          tar -xzf trivy_0.74.0_Linux-64bit.tar.gz trivy
+      - name: Scan all manifest severities and the actual library JAR
+        run: |
+          : > target/security/empty.trivyignore
+          .trivy-tools/trivy fs --cache-dir .trivy-cache --scanners vuln --detection-priority comprehensive --ignorefile target/security/empty.trivyignore --list-all-pkgs --no-progress --timeout 15m --format json --output target/security/trivy-source.json .
+          .trivy-tools/trivy rootfs --cache-dir .trivy-cache --scanners vuln --detection-priority comprehensive --ignorefile target/security/empty.trivyignore --list-all-pkgs --no-progress --timeout 15m --format json --output target/security/trivy-jar.json target/owl2vowl-core-1.0.0.jar
+          node scripts/security/summarize-trivy.mjs target/security/trivy-summary.json target/security/trivy-source.json target/security/trivy-jar.json
+          .trivy-tools/trivy --cache-dir .trivy-cache --version > target/security/trivy-version.txt
+          sha256sum target/owl2vowl-core-1.0.0.jar target/owl2vowl-core-1.0.0-sources.jar pom.xml > target/security/sha256.txt
+      - name: Preserve release candidates and audit reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: standalone-converter-audit
+          path: |
+            target/owl2vowl-core-1.0.0.jar
+            target/owl2vowl-core-1.0.0-sources.jar
+            pom.xml
+            dependency-tree.txt
+            target/security/*.json
+            target/security/*.txt
