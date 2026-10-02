@@ -58,13 +58,26 @@ CI tests Java 11, 17 and 21 and retains the library, sources, dependency tree,
 OSV and unfiltered Trivy reports. Conversion tests cover classes, object/data
 properties, named restrictions, positive unqualified cardinalities and imports.
 
-## Limits and maintenance
+## Known limitations
 
 Qualified cardinalities, zero max/exact cardinalities, anonymous intersection
 fillers and the tested plain URN form remain incomplete, as in the original
 converter. This library is not a reasoner or a lossless OWL representation.
 
-The repository owner maintains releases and dependency updates. Moving the code
-out of WIDOCO does not remove this responsibility. See [SECURITY.md](SECURITY.md).
-Consumers can select different transitive versions, so scan the final application
-JAR and any deployment image as well as this library.
+## Security fixes
+
+This is a security-updated version of the OWL2VOWL converter. Its dependency
+stack removes the obsolete libraries associated with these critical advisories:
+
+- `jackson-mapper-asl`: unsafe deserialization in Codehaus Jackson
+  ([CVE-2019-10202](https://github.com/advisories/GHSA-c27h-mcmw-48hv)).
+- `collections-generic`: Java deserialization gadget chains that can enable
+  arbitrary code execution
+  ([CVE-2015-7501](https://github.com/advisories/GHSA-fjq5-5j5f-mvxh)).
+
+The remaining runtime dependencies are updated and checked, including transitive
+dependencies. Trivy and OSV reported no known Java vulnerabilities for release
+1.0.1 and its resolved dependency graph at the scanned versions. The
+[release](https://github.com/silverspy/owl2vowl-core/releases/tag/1.0.1) includes
+the security reports, source artifacts and checksums. See [SECURITY.md](SECURITY.md)
+for vulnerability reporting.
